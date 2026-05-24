@@ -24,6 +24,11 @@ class NewsSourceListView(AdminOnlyMixin, ListView):
     def get_queryset(self):
         return NewsSource.objects.prefetch_related("items", "discoveries").order_by("name")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["target_group_choices"] = NewsSource.TargetGroup.choices
+        return context
+
 
 class NewsSourceCreateView(AdminOnlyMixin, CreateView):
     model = NewsSource
@@ -85,6 +90,7 @@ class NewsSourceSummarizeView(AdminOnlyMixin, View):
                     discovery_type=link["type"],
                     url=link["url"],
                     defaults={
+                        "target_group": source.target_group,
                         "title": link["title"],
                         "description": link["description"],
                     },
@@ -136,6 +142,7 @@ def refresh_source(source):
             discovery_type=link["type"],
             url=link["url"],
             defaults={
+                "target_group": source.target_group,
                 "title": link["title"],
                 "description": link["description"],
             },
@@ -159,10 +166,20 @@ class NewsSourceBulkApplyView(AdminOnlyMixin, View):
 
         for source in NewsSource.objects.filter(pk__in=source_ids):
             source.is_active = request.POST.get(f"source_{source.pk}_is_active") == "on"
+            source.target_group = request.POST.get(f"source_{source.pk}_target_group", NewsSource.TargetGroup.ALL)
             source.search_news = request.POST.get(f"source_{source.pk}_search_news") == "on"
             source.search_calendars = request.POST.get(f"source_{source.pk}_search_calendars") == "on"
             source.search_tables = request.POST.get(f"source_{source.pk}_search_tables") == "on"
-            source.save(update_fields=["is_active", "search_news", "search_calendars", "search_tables", "updated_at"])
+            source.save(
+                update_fields=[
+                    "is_active",
+                    "target_group",
+                    "search_news",
+                    "search_calendars",
+                    "search_tables",
+                    "updated_at",
+                ]
+            )
             updated_sources += 1
 
             try:
@@ -174,7 +191,8 @@ class NewsSourceBulkApplyView(AdminOnlyMixin, View):
 
         for discovery in SourceDiscovery.objects.filter(pk__in=discovery_ids):
             discovery.show_on_main_page = request.POST.get(f"discovery_{discovery.pk}_show_on_main_page") == "on"
-            discovery.save(update_fields=["show_on_main_page", "updated_at"])
+            discovery.target_group = request.POST.get(f"discovery_{discovery.pk}_target_group", NewsSource.TargetGroup.ALL)
+            discovery.save(update_fields=["show_on_main_page", "target_group", "updated_at"])
 
         messages.success(
             request,

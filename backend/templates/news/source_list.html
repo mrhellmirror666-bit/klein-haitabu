@@ -29,6 +29,14 @@
               <input form="bulk-source-form" type="checkbox" name="source_{{ source.pk }}_is_active" {% if source.is_active %}checked{% endif %}>
               <span>Quelle aktiv</span>
             </label>
+            <label class="source-select">
+              <span>Anzeigen fuer</span>
+              <select form="bulk-source-form" name="source_{{ source.pk }}_target_group">
+                {% for value, label in target_group_choices %}
+                  <option value="{{ value }}" {% if source.target_group == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
             <label class="status-check">
               <input form="bulk-source-form" type="checkbox" name="source_{{ source.pk }}_search_news" {% if source.search_news %}checked{% endif %}>
               <span>Nachrichten suchen</span>
@@ -92,6 +100,14 @@
                   <label class="status-check">
                     <input form="bulk-source-form" type="checkbox" name="discovery_{{ discovery.pk }}_show_on_main_page" {% if discovery.show_on_main_page %}checked{% endif %}>
                     <span>Auf Hauptseite anzeigen</span>
+                  </label>
+                  <label class="source-select">
+                    <span>Anzeigen fuer</span>
+                    <select form="bulk-source-form" name="discovery_{{ discovery.pk }}_target_group">
+                      {% for value, label in target_group_choices %}
+                        <option value="{{ value }}" {% if discovery.target_group == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
                   </label>
                 </div>
                 {% if discovery.is_imported %}

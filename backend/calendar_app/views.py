@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from accounts.permissions import can_create_event, can_edit_event
-from news.models import ImportedExternalItem, NewsItem
+from news.models import ImportedExternalItem, NewsItem, NewsSource
 
 from .forms import CalendarEventForm, NewsToCalendarEventForm
 from .models import CalendarEvent
@@ -148,6 +148,7 @@ class EventListView(LoginRequiredMixin, ListView):
             | Q(item_type=ImportedExternalItem.ItemType.CALENDAR, ends_at__gte=now)
             | Q(item_type=ImportedExternalItem.ItemType.CALENDAR, ends_at__isnull=True, starts_at__gte=now)
         )
+        visible_for_group = [NewsSource.TargetGroup.ALL, self.group_code]
 
         context.update(
             {
@@ -159,12 +160,16 @@ class EventListView(LoginRequiredMixin, ListView):
                 "group_code": self.group_code,
                 "group_name": self.group_name,
                 "create_url_name": self.create_url_name,
-                "news_items": NewsItem.objects.filter(source__is_active=True)
+                "news_items": NewsItem.objects.filter(
+                    source__is_active=True,
+                    source__target_group__in=visible_for_group,
+                )
                 .select_related("source")
                 .order_by("-updated_at")[:6],
                 "imported_items": ImportedExternalItem.objects.filter(
                     discovery__is_imported=True,
                     discovery__show_on_main_page=True,
+                    discovery__target_group__in=visible_for_group,
                 )
                 .filter(visible_imports)
                 .select_related("discovery", "discovery__source")

@@ -3,9 +3,15 @@ from django.db import models
 
 
 class NewsSource(models.Model):
+    class TargetGroup(models.TextChoices):
+        ALL = "all", "Alle Gruppen"
+        KLEIN_HAITABU = "klein_haitabu", "Klein Haitabu"
+        DSF = "dsf", "DSF"
+
     name = models.CharField(max_length=120)
     url = models.URLField(unique=True)
     is_active = models.BooleanField(default=True)
+    target_group = models.CharField(max_length=30, choices=TargetGroup.choices, default=TargetGroup.ALL)
     search_news = models.BooleanField(default=True)
     search_calendars = models.BooleanField(default=False)
     search_tables = models.BooleanField(default=False)
@@ -53,6 +59,7 @@ class SourceDiscovery(models.Model):
 
     source = models.ForeignKey(NewsSource, on_delete=models.CASCADE, related_name="discoveries")
     discovery_type = models.CharField(max_length=20, choices=DiscoveryType.choices)
+    target_group = models.CharField(max_length=30, choices=NewsSource.TargetGroup.choices, default=NewsSource.TargetGroup.ALL)
     title = models.CharField(max_length=220)
     url = models.URLField()
     description = models.TextField(blank=True)

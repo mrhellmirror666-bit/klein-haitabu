@@ -523,6 +523,21 @@ select {
   width: auto;
 }
 
+.source-select {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.92rem;
+  font-weight: 650;
+  gap: 0.5rem;
+}
+
+.source-select select {
+  min-width: 160px;
+  width: auto;
+}
+
 .error-text {
   color: var(--danger);
 }
