@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Als Termin hinzufuegen - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="modal-page">
+    <div class="dialog-panel">
+      <div class="page-head compact-head">
+        <div>
+          <p class="eyebrow">{{ source_label }}</p>
+          <h1>Als Kalendereintrag hinzufuegen</h1>
+        </div>
+      </div>
+
+      <article class="source-item">
+        <h4>{{ source_title }}</h4>
+        <p>{{ source_text }}</p>
+      </article>
+
+      <form method="post" class="form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button class="button primary" type="submit">Kalendereintrag speichern</button>
+          <a class="button" href="{% url 'calendar:list' %}">Abbrechen</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

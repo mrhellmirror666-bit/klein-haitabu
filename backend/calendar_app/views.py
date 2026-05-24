@@ -1,5 +1,6 @@
 import calendar
-from datetime import date
+from datetime import date, timedelta
+import re
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -9,9 +10,81 @@ from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from accounts.permissions import can_create_event, can_edit_event
+from news.models import ImportedExternalItem, NewsItem
 
-from .forms import CalendarEventForm
+from .forms import CalendarEventForm, NewsToCalendarEventForm
 from .models import CalendarEvent
+
+
+def default_event_start_from_text(text):
+    parsed_date = parse_german_date(text)
+    if parsed_date:
+        hour, minute = parse_time(text)
+        return timezone.make_aware(
+            timezone.datetime(parsed_date.year, parsed_date.month, parsed_date.day, hour, minute),
+            timezone.get_current_timezone(),
+        )
+
+    return timezone.localtime(timezone.now()).replace(second=0, microsecond=0) + timedelta(days=1)
+
+
+def default_location_from_text(text):
+    match = re.search(r"^Wo:\s*(.+)$", text, flags=re.MULTILINE)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def parse_german_date(text):
+    numeric_match = re.search(r"\b(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{2,4})\b", text)
+    if numeric_match:
+        day, month, year = numeric_match.groups()
+        if len(year) == 2:
+            year = f"20{year}"
+        return date(int(year), int(month), int(day))
+
+    word_match = re.search(
+        r"\b(\d{1,2})\.\s*(Januar|Februar|Maerz|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if word_match:
+        day, month_name, year = word_match.groups()
+        return date(int(year), german_month_number(month_name), int(day))
+
+    return None
+
+
+def parse_time(text):
+    match = re.search(r"\b(\d{1,2}):(\d{2})\b", text)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+
+    match = re.search(r"\b(\d{1,2})\.(\d{2})\s*Uhr\b", text, flags=re.IGNORECASE)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+
+    return 9, 0
+
+
+def german_month_number(month_name):
+    normalized = month_name.lower().replace("ä", "ae")
+    months = {
+        "januar": 1,
+        "februar": 2,
+        "maerz": 3,
+        "märz": 3,
+        "april": 4,
+        "mai": 5,
+        "juni": 6,
+        "juli": 7,
+        "august": 8,
+        "september": 9,
+        "oktober": 10,
+        "november": 11,
+        "dezember": 12,
+    }
+    return months[normalized]
 
 
 class EventListView(LoginRequiredMixin, ListView):
@@ -71,6 +144,15 @@ class EventListView(LoginRequiredMixin, ListView):
                 "previous_month": previous_month,
                 "next_month": next_month,
                 "weekday_labels": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+                "news_items": NewsItem.objects.filter(source__is_active=True)
+                .select_related("source")
+                .order_by("-updated_at")[:6],
+                "imported_items": ImportedExternalItem.objects.filter(
+                    discovery__is_imported=True,
+                    discovery__show_on_main_page=True,
+                )
+                .select_related("discovery", "discovery__source")
+                .order_by("-created_at")[:8],
             }
         )
         return context
@@ -101,6 +183,86 @@ class EventCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.created_by = self.request.user
         messages.success(self.request, "Termin wurde erstellt.")
+        return super().form_valid(form)
+
+
+class NewsToCalendarEventCreateView(LoginRequiredMixin, CreateView):
+    model = CalendarEvent
+    form_class = NewsToCalendarEventForm
+    template_name = "calendar_app/news_event_form.html"
+    success_url = reverse_lazy("calendar:list")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not can_create_event(request.user):
+            raise PermissionDenied("Du darfst keine Termine erstellen.")
+        self.news_item = NewsItem.objects.select_related("source").get(pk=kwargs["news_pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        starts_at = default_event_start_from_text(f"{self.news_item.title} {self.news_item.summary}")
+        ends_at = starts_at + timedelta(hours=1)
+        return {
+            "title": self.news_item.title[:200],
+            "description": self.news_item.summary,
+            "starts_at": starts_at,
+            "ends_at": ends_at,
+            "location": default_location_from_text(self.news_item.summary),
+            "visibility": CalendarEvent.Visibility.USERS,
+            "tags": "Nachricht, Import",
+        }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["source_title"] = self.news_item.title
+        context["source_text"] = self.news_item.summary
+        context["source_label"] = "Kurznachricht"
+        return context
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        messages.success(self.request, "Kurznachricht wurde als Kalendereintrag gespeichert.")
+        return super().form_valid(form)
+
+
+class ImportToCalendarEventCreateView(LoginRequiredMixin, CreateView):
+    model = CalendarEvent
+    form_class = NewsToCalendarEventForm
+    template_name = "calendar_app/news_event_form.html"
+    success_url = reverse_lazy("calendar:list")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not can_create_event(request.user):
+            raise PermissionDenied("Du darfst keine Termine erstellen.")
+        self.imported_item = ImportedExternalItem.objects.select_related("discovery", "discovery__source").get(
+            pk=kwargs["import_pk"]
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        starts_at = self.imported_item.starts_at or default_event_start_from_text(
+            f"{self.imported_item.title} {self.imported_item.content}"
+        )
+        ends_at = self.imported_item.ends_at or starts_at + timedelta(hours=1)
+        return {
+            "title": self.imported_item.title[:200],
+            "description": self.imported_item.content,
+            "starts_at": starts_at,
+            "ends_at": ends_at,
+            "location": default_location_from_text(self.imported_item.content),
+            "visibility": CalendarEvent.Visibility.USERS,
+            "tags": f"{self.imported_item.get_item_type_display()}, Import",
+        }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["source_title"] = self.imported_item.title
+        context["source_text"] = self.imported_item.content
+        context["source_label"] = "Import"
+        return context
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        messages.success(self.request, "Import wurde als Kalendereintrag gespeichert.")
         return super().form_valid(form)
 
 

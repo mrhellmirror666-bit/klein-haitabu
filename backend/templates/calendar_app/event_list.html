@@ -18,41 +18,98 @@
     </div>
   </section>
 
-  <section class="calendar-shell" aria-label="Monatskalender">
-    <div class="calendar-weekdays">
-      {% for label in weekday_labels %}
-        <div>{{ label }}</div>
-      {% endfor %}
-    </div>
-
-    <div class="calendar-grid">
-      {% for week in calendar_weeks %}
-        {% for day in week %}
-          <article class="calendar-day{% if not day.is_current_month %} muted-day{% endif %}{% if day.is_today %} today{% endif %}">
-            <time datetime="{{ day.date|date:'Y-m-d' }}">{{ day.date|date:"d.m." }}</time>
-
-            <div class="day-events">
-              {% for event in day.events %}
-                {% if user.role == "admin" or event.created_by_id == user.id %}
-                  <a class="calendar-event" href="{% url 'calendar:update' event.pk %}">
-                    <span>{{ event.starts_at|date:"H:i" }}</span>
-                    {{ event.title }}
-                  </a>
-                {% else %}
-                  <div class="calendar-event">
-                    <span>{{ event.starts_at|date:"H:i" }}</span>
-                    {{ event.title }}
-                  </div>
-                {% endif %}
-              {% empty %}
-                <span class="no-event">Keine Termine</span>
-              {% endfor %}
-            </div>
-          </article>
+  <div class="calendar-dashboard">
+    <section class="calendar-shell" aria-label="Monatskalender">
+      <div class="calendar-weekdays">
+        {% for label in weekday_labels %}
+          <div>{{ label }}</div>
         {% endfor %}
-      {% endfor %}
-    </div>
-  </section>
+      </div>
+
+      <div class="calendar-grid">
+        {% for week in calendar_weeks %}
+          {% for day in week %}
+            <article class="calendar-day{% if not day.is_current_month %} muted-day{% endif %}{% if day.is_today %} today{% endif %}">
+              <time datetime="{{ day.date|date:'Y-m-d' }}">{{ day.date|date:"d.m." }}</time>
+
+              <div class="day-events">
+                {% for event in day.events %}
+                  {% if user.role == "admin" or event.created_by_id == user.id %}
+                    <a class="calendar-event" href="{% url 'calendar:update' event.pk %}">
+                      <span>{{ event.starts_at|date:"H:i" }}</span>
+                      {{ event.title }}
+                    </a>
+                  {% else %}
+                    <div class="calendar-event">
+                      <span>{{ event.starts_at|date:"H:i" }}</span>
+                      {{ event.title }}
+                    </div>
+                  {% endif %}
+                {% empty %}
+                  <span class="no-event">Keine Termine</span>
+                {% endfor %}
+              </div>
+            </article>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="side-panels">
+      <section class="import-panel" aria-label="Importierte Kalender und Tabellen">
+        <div class="news-panel-head">
+          <p class="eyebrow">Importe</p>
+          <h2>Kalender & Tabellen</h2>
+        </div>
+
+        {% for item in imported_items %}
+          <article class="news-item">
+            <h3>{{ item.title }}</h3>
+            {% if item.starts_at %}
+              <p>{{ item.starts_at|date:"d.m.Y H:i" }}{% if item.ends_at %} bis {{ item.ends_at|date:"d.m.Y H:i" }}{% endif %}</p>
+            {% endif %}
+            {% if item.content %}
+              <p>{{ item.content }}</p>
+            {% endif %}
+            <span>{{ item.discovery.source.name }} · {{ item.get_item_type_display }}</span>
+            {% if user.role == "admin" or user.role == "user" %}
+              <a class="button" href="{% url 'calendar:create-from-import' item.pk %}">Als Termin hinzufuegen</a>
+            {% endif %}
+            <a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">Quelle oeffnen</a>
+          </article>
+        {% empty %}
+          <p class="empty compact">Noch keine Kalender oder Tabellen importiert.</p>
+          {% if user.role == "admin" or user.is_superuser %}
+            <a class="button" href="{% url 'news:source-list' %}">Quellen verwalten</a>
+          {% endif %}
+        {% endfor %}
+      </section>
+
+      <section class="news-panel" aria-label="Nachrichten">
+        <div class="news-panel-head">
+          <p class="eyebrow">Nachrichten</p>
+          <h2>Zusammenfassungen</h2>
+        </div>
+
+        {% for item in news_items %}
+          <article class="news-item">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.summary }}</p>
+            <span>{{ item.source.name }}</span>
+            {% if user.role == "admin" or user.role == "user" %}
+              <a class="button" href="{% url 'calendar:create-from-news' item.pk %}">Als Termin hinzufuegen</a>
+            {% endif %}
+            <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">Nachricht oeffnen</a>
+          </article>
+        {% empty %}
+          <p class="empty compact">Noch keine Zusammenfassungen vorhanden.</p>
+          {% if user.role == "admin" or user.is_superuser %}
+            <a class="button" href="{% url 'news:source-list' %}">Quellen verwalten</a>
+          {% endif %}
+        {% endfor %}
+      </section>
+    </aside>
+  </div>
 
   <section class="event-list" aria-label="Terminliste">
     <h2>Terminliste</h2>
@@ -68,6 +125,7 @@
             {% if event.description %}
               <p>{{ event.description }}</p>
             {% endif %}
+            <p>Sichtbar fuer: {{ event.get_visibility_display }}{% if event.tags %} · Tags: {{ event.tags }}{% endif %}</p>
           </div>
           {% if user.role == "admin" or event.created_by_id == user.id %}
             <div class="card-actions">

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Nachrichtenquelle loeschen - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Nachrichtenquelle loeschen</h1>
+    <p>Moechtest du "{{ object.name }}" wirklich loeschen?</p>
+    <form method="post" class="form inline">
+      {% csrf_token %}
+      <button class="button danger" type="submit">Loeschen</button>
+      <a class="button" href="{% url 'news:source-list' %}">Abbrechen</a>
+    </form>
+  </section>
+{% endblock %}

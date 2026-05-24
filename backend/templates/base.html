@@ -25,6 +25,7 @@
               <a href="{% url 'calendar:list' %}">Kalender</a>
               {% if user.role == "admin" or user.is_superuser %}
                 <a href="{% url 'permission-management' %}">Rechteverwaltung</a>
+                <a href="{% url 'news:source-list' %}">Nachrichtenquellen</a>
               {% endif %}
               <label class="theme-switch">
                 <span>Darkmode</span>

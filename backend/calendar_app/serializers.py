@@ -15,6 +15,8 @@ class CalendarEventSerializer(serializers.ModelSerializer):
             "starts_at",
             "ends_at",
             "location",
+            "visibility",
+            "tags",
             "created_by",
             "created_at",
             "updated_at",

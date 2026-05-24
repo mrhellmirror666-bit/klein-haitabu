@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Nachrichtenquellen - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">Nachrichten</p>
+      <h1>Nachrichtenquellen</h1>
+    </div>
+    <div class="actions">
+      <form id="bulk-source-form" method="post" action="{% url 'news:source-bulk-apply' %}">
+        {% csrf_token %}
+      </form>
+      <button class="button primary" form="bulk-source-form" type="submit">Aenderungen uebernehmen</button>
+      <a class="button" href="{% url 'news:source-create' %}">Quelle hinzufuegen</a>
+    </div>
+  </section>
+
+  <section class="event-list">
+    {% for source in sources %}
+      <article class="event-card">
+        <input form="bulk-source-form" type="hidden" name="source_ids" value="{{ source.pk }}">
+        <div>
+          <h3>{{ source.name }}</h3>
+          <p><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.url }}</a></p>
+          <div class="bulk-options">
+            <label class="status-check">
+              <input form="bulk-source-form" type="checkbox" name="source_{{ source.pk }}_is_active" {% if source.is_active %}checked{% endif %}>
+              <span>Quelle aktiv</span>
+            </label>
+            <label class="status-check">
+              <input form="bulk-source-form" type="checkbox" name="source_{{ source.pk }}_search_news" {% if source.search_news %}checked{% endif %}>
+              <span>Nachrichten suchen</span>
+            </label>
+            <label class="status-check">
+              <input form="bulk-source-form" type="checkbox" name="source_{{ source.pk }}_search_calendars" {% if source.search_calendars %}checked{% endif %}>
+              <span>Kalender suchen</span>
+            </label>
+            <label class="status-check">
+              <input form="bulk-source-form" type="checkbox" name="source_{{ source.pk }}_search_tables" {% if source.search_tables %}checked{% endif %}>
+              <span>Tabellen suchen</span>
+            </label>
+          </div>
+          <label class="status-check">
+            <input type="checkbox" disabled {% if source.discoveries.all %}checked{% endif %}>
+            <span>Quelle wurde durchsucht</span>
+          </label>
+          {% if source.summary %}
+            <p>{{ source.summary }}</p>
+          {% else %}
+            <p>Noch keine Nachrichten gefunden.</p>
+          {% endif %}
+          {% if source.last_error %}
+            <p class="error-text">{{ source.last_error }}</p>
+          {% endif %}
+          {% if source.last_fetched_at %}
+            <p>Letzte Zusammenfassung: {{ source.last_fetched_at|date:"d.m.Y H:i" }}</p>
+          {% endif %}
+        </div>
+        <div class="card-actions">
+          <form method="post" action="{% url 'news:source-summarize' source.pk %}">
+            {% csrf_token %}
+            <button class="button primary" type="submit">Quelle durchsuchen</button>
+          </form>
+          <a href="{% url 'news:source-update' source.pk %}">Bearbeiten</a>
+          <a href="{% url 'news:source-delete' source.pk %}">Loeschen</a>
+        </div>
+        {% if source.items.all %}
+          <div class="source-items">
+            {% for item in source.items.all|slice:":5" %}
+              <article class="source-item">
+                <h4>{{ item.title }}</h4>
+                <p>{{ item.summary }}</p>
+                <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">Nachricht oeffnen</a>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if source.discoveries.all %}
+          <div class="source-items">
+            {% for discovery in source.discoveries.all|slice:":8" %}
+              <article class="source-item">
+                <input form="bulk-source-form" type="hidden" name="discovery_ids" value="{{ discovery.pk }}">
+                <h4>{{ discovery.get_discovery_type_display }}: {{ discovery.title }}</h4>
+                <p>{{ discovery.description }}</p>
+                <div class="import-controls">
+                  <label class="status-check">
+                    <input type="checkbox" disabled {% if discovery.is_imported %}checked{% endif %}>
+                    <span>Importiert</span>
+                  </label>
+                  <label class="status-check">
+                    <input form="bulk-source-form" type="checkbox" name="discovery_{{ discovery.pk }}_show_on_main_page" {% if discovery.show_on_main_page %}checked{% endif %}>
+                    <span>Auf Hauptseite anzeigen</span>
+                  </label>
+                </div>
+                {% if discovery.is_imported %}
+                  <p>Importiert am {{ discovery.imported_at|date:"d.m.Y H:i" }}</p>
+                {% endif %}
+                {% if discovery.import_error %}
+                  <p class="error-text">{{ discovery.import_error }}</p>
+                {% endif %}
+                <form method="post" action="{% url 'news:discovery-import' discovery.pk %}">
+                  {% csrf_token %}
+                  <button class="button primary" type="submit">Importieren</button>
+                </form>
+                {% if discovery.is_imported %}
+                  <form method="post" action="{% url 'news:discovery-delete-import' discovery.pk %}">
+                    {% csrf_token %}
+                    <button class="button danger" type="submit">Import loeschen</button>
+                  </form>
+                {% endif %}
+                <a href="{{ discovery.url }}" target="_blank" rel="noopener noreferrer">Fund oeffnen</a>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </article>
+    {% empty %}
+      <p class="empty">Noch keine Nachrichtenquellen vorhanden.</p>
+    {% endfor %}
+  </section>
+{% endblock %}
