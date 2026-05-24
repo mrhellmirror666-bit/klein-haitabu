@@ -23,8 +23,9 @@ Internet
 9. `.env` fuer Produktionswerte anlegen.
 10. Container starten.
 11. Datenbankmigrationen ausfuehren.
-12. Admin-Benutzer anlegen.
-13. Backups einrichten.
+12. Statische Dateien sammeln.
+13. Admin-Benutzer anlegen.
+14. Backups einrichten.
 
 ## Reverse Proxy
 
@@ -51,3 +52,15 @@ ALLOWED_HOSTS=vereinsdomain.de,www.vereinsdomain.de
 ```
 
 Diese Werte gehoeren in eine `.env`-Datei auf dem Server.
+
+## Statische Dateien
+
+Vor dem Start im Produktionsmodus muessen die statischen Dateien gesammelt
+werden:
+
+```bash
+python manage.py collectstatic --noinput
+```
+
+WhiteNoise liefert diese Dateien anschliessend auch ohne separate Caddy-Regel
+aus. Caddy kann weiterhin als Reverse Proxy vor Django laufen.
