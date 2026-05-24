@@ -1,5 +1,7 @@
 from django import forms
 
+from common.models import Group
+
 from .models import NewsSource
 
 
@@ -16,3 +18,8 @@ class NewsSourceForm(forms.ModelForm):
             "search_calendars": "Kalender suchen",
             "search_tables": "Tabellen suchen",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["target_group"].queryset = Group.objects.filter(is_active=True)
+        self.fields["target_group"].empty_label = "Alle Gruppen"

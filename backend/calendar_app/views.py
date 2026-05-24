@@ -12,10 +12,14 @@ from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from accounts.permissions import can_create_event, can_edit_event
 from common.dates import parse_german_date_from_text, parse_time_from_text
+from common.models import Group
 from news.models import ImportedExternalItem, NewsItem, NewsSource
 
 from .forms import CalendarEventForm, NewsToCalendarEventForm
 from .models import CalendarEvent
+
+GROUP_KLEIN_HAITABU = "klein_haitabu"
+GROUP_DSF = "dsf"
 
 
 def default_event_start_from_text(text):
@@ -44,13 +48,13 @@ class EventListView(LoginRequiredMixin, ListView):
     model = CalendarEvent
     template_name = "calendar_app/event_list.html"
     context_object_name = "events"
-    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    group_slug = GROUP_KLEIN_HAITABU
     group_name = "Klein Haitabu"
     list_url_name = "calendar:list"
     create_url_name = "calendar:create"
 
     def get_queryset(self):
-        return CalendarEvent.objects.filter(group=self.group_code).select_related("created_by")
+        return CalendarEvent.objects.filter(group__slug=self.group_slug).select_related("created_by", "group")
 
     def get_month_date(self):
         today = timezone.localdate()
@@ -100,7 +104,7 @@ class EventListView(LoginRequiredMixin, ListView):
             | Q(item_type=ImportedExternalItem.ItemType.CALENDAR, ends_at__gte=now)
             | Q(item_type=ImportedExternalItem.ItemType.CALENDAR, ends_at__isnull=True, starts_at__gte=now)
         )
-        visible_for_group = [NewsSource.TargetGroup.ALL, self.group_code]
+        visible_for_group = Q(target_group__isnull=True) | Q(target_group__slug=self.group_slug)
 
         context.update(
             {
@@ -109,22 +113,24 @@ class EventListView(LoginRequiredMixin, ListView):
                 "previous_month": previous_month,
                 "next_month": next_month,
                 "weekday_labels": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
-                "group_code": self.group_code,
+                "group_code": self.group_slug,
                 "group_name": self.group_name,
                 "create_url_name": self.create_url_name,
                 "news_items": NewsItem.objects.filter(
                     source__is_active=True,
-                    source__target_group__in=visible_for_group,
                 )
-                .select_related("source")
+                .filter(
+                    Q(source__target_group__isnull=True) | Q(source__target_group__slug=self.group_slug),
+                )
+                .select_related("source", "source__target_group")
                 .order_by("-updated_at")[:6],
                 "imported_items": ImportedExternalItem.objects.filter(
                     discovery__is_imported=True,
                     discovery__show_on_main_page=True,
-                    discovery__target_group__in=visible_for_group,
                 )
+                .filter(Q(discovery__target_group__isnull=True) | Q(discovery__target_group__slug=self.group_slug))
                 .filter(visible_imports)
-                .select_related("discovery", "discovery__source")
+                .select_related("discovery", "discovery__target_group", "discovery__source")
                 .order_by("-created_at")[:8],
             }
         )
@@ -146,7 +152,7 @@ class EventCreateView(LoginRequiredMixin, CreateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_app/event_form.html"
-    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    group_slug = GROUP_KLEIN_HAITABU
     success_url_name = "calendar:list"
 
     def dispatch(self, request, *args, **kwargs):
@@ -156,7 +162,7 @@ class EventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
-        form.instance.group = self.group_code
+        form.instance.group = Group.objects.get(slug=self.group_slug)
         messages.success(self.request, "Termin wurde erstellt.")
         return super().form_valid(form)
 
@@ -168,7 +174,7 @@ class NewsToCalendarEventCreateView(LoginRequiredMixin, CreateView):
     model = CalendarEvent
     form_class = NewsToCalendarEventForm
     template_name = "calendar_app/news_event_form.html"
-    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    group_slug = GROUP_KLEIN_HAITABU
     success_url_name = "calendar:list"
 
     def dispatch(self, request, *args, **kwargs):
@@ -199,7 +205,7 @@ class NewsToCalendarEventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
-        form.instance.group = self.group_code
+        form.instance.group = Group.objects.get(slug=self.group_slug)
         messages.success(self.request, "Kurznachricht wurde als Kalendereintrag gespeichert.")
         return super().form_valid(form)
 
@@ -211,7 +217,7 @@ class ImportToCalendarEventCreateView(LoginRequiredMixin, CreateView):
     model = CalendarEvent
     form_class = NewsToCalendarEventForm
     template_name = "calendar_app/news_event_form.html"
-    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    group_slug = GROUP_KLEIN_HAITABU
     success_url_name = "calendar:list"
 
     def dispatch(self, request, *args, **kwargs):
@@ -246,7 +252,7 @@ class ImportToCalendarEventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
-        form.instance.group = self.group_code
+        form.instance.group = Group.objects.get(slug=self.group_slug)
         messages.success(self.request, "Import wurde als Kalendereintrag gespeichert.")
         return super().form_valid(form)
 
@@ -259,7 +265,7 @@ class EventUpdateView(LoginRequiredMixin, UpdateView):
     form_class = CalendarEventForm
     template_name = "calendar_app/event_form.html"
     def get_success_url(self):
-        if self.object.group == CalendarEvent.Group.DSF:
+        if self.object.group.slug == GROUP_DSF:
             return reverse_lazy("calendar:dsf-list")
         return reverse_lazy("calendar:list")
 
@@ -279,7 +285,7 @@ class EventDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "calendar_app/event_confirm_delete.html"
 
     def get_success_url(self):
-        if self.object.group == CalendarEvent.Group.DSF:
+        if self.object.group.slug == GROUP_DSF:
             return reverse_lazy("calendar:dsf-list")
         return reverse_lazy("calendar:list")
 
@@ -291,22 +297,22 @@ class EventDeleteView(LoginRequiredMixin, DeleteView):
 
 
 class DSFEventListView(EventListView):
-    group_code = CalendarEvent.Group.DSF
+    group_slug = GROUP_DSF
     group_name = "DSF"
     list_url_name = "calendar:dsf-list"
     create_url_name = "calendar:dsf-create"
 
 
 class DSFEventCreateView(EventCreateView):
-    group_code = CalendarEvent.Group.DSF
+    group_slug = GROUP_DSF
     success_url_name = "calendar:dsf-list"
 
 
 class DSFNewsToCalendarEventCreateView(NewsToCalendarEventCreateView):
-    group_code = CalendarEvent.Group.DSF
+    group_slug = GROUP_DSF
     success_url_name = "calendar:dsf-list"
 
 
 class DSFImportToCalendarEventCreateView(ImportToCalendarEventCreateView):
-    group_code = CalendarEvent.Group.DSF
+    group_slug = GROUP_DSF
     success_url_name = "calendar:dsf-list"

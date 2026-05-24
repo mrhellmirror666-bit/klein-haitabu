@@ -6,6 +6,8 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
+from common.models import Group
+
 from .forms import NewsSourceForm
 from .models import ImportedExternalItem, NewsItem, NewsSource, SourceDiscovery
 from .services import discover_news_items, discover_source_links, import_discovery_items
@@ -22,11 +24,11 @@ class NewsSourceListView(AdminOnlyMixin, ListView):
     context_object_name = "sources"
 
     def get_queryset(self):
-        return NewsSource.objects.prefetch_related("items", "discoveries").order_by("name")
+        return NewsSource.objects.select_related("target_group").prefetch_related("items", "discoveries__target_group").order_by("name")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["target_group_choices"] = NewsSource.TargetGroup.choices
+        context["target_group_choices"] = [("", "Alle Gruppen"), *Group.objects.filter(is_active=True).values_list("pk", "name")]
         return context
 
 
@@ -142,7 +144,7 @@ def refresh_source(source):
             discovery_type=link["type"],
             url=link["url"],
             defaults={
-                "target_group": source.target_group,
+                        "target_group": source.target_group,
                 "title": link["title"],
                 "description": link["description"],
             },
@@ -166,7 +168,7 @@ class NewsSourceBulkApplyView(AdminOnlyMixin, View):
 
         for source in NewsSource.objects.filter(pk__in=source_ids):
             source.is_active = request.POST.get(f"source_{source.pk}_is_active") == "on"
-            source.target_group = request.POST.get(f"source_{source.pk}_target_group", NewsSource.TargetGroup.ALL)
+            source.target_group_id = request.POST.get(f"source_{source.pk}_target_group") or None
             source.search_news = request.POST.get(f"source_{source.pk}_search_news") == "on"
             source.search_calendars = request.POST.get(f"source_{source.pk}_search_calendars") == "on"
             source.search_tables = request.POST.get(f"source_{source.pk}_search_tables") == "on"
@@ -191,7 +193,7 @@ class NewsSourceBulkApplyView(AdminOnlyMixin, View):
 
         for discovery in SourceDiscovery.objects.filter(pk__in=discovery_ids):
             discovery.show_on_main_page = request.POST.get(f"discovery_{discovery.pk}_show_on_main_page") == "on"
-            discovery.target_group = request.POST.get(f"discovery_{discovery.pk}_target_group", NewsSource.TargetGroup.ALL)
+            discovery.target_group_id = request.POST.get(f"discovery_{discovery.pk}_target_group") or None
             discovery.save(update_fields=["show_on_main_page", "target_group", "updated_at"])
 
         messages.success(

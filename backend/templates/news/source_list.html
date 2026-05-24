@@ -33,7 +33,7 @@
               <span>Anzeigen fuer</span>
               <select form="bulk-source-form" name="source_{{ source.pk }}_target_group">
                 {% for value, label in target_group_choices %}
-                  <option value="{{ value }}" {% if source.target_group == value %}selected{% endif %}>{{ label }}</option>
+                  <option value="{{ value }}" {% if source.target_group_id == value or not source.target_group_id and not value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
               </select>
             </label>
@@ -105,7 +105,7 @@
                     <span>Anzeigen fuer</span>
                     <select form="bulk-source-form" name="discovery_{{ discovery.pk }}_target_group">
                       {% for value, label in target_group_choices %}
-                        <option value="{{ value }}" {% if discovery.target_group == value %}selected{% endif %}>{{ label }}</option>
+                        <option value="{{ value }}" {% if discovery.target_group_id == value or not discovery.target_group_id and not value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
                   </label>
