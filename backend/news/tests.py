@@ -11,6 +11,7 @@ from news.services import (
     extract_page_title,
     html_to_text,
     make_short_summary,
+    normalize_webcal_url,
     parse_csv_rows,
     parse_html_calendar_items,
     parse_html_table_rows,
@@ -24,6 +25,23 @@ class NewsServiceTests(TestCase):
     def test_local_addresses_are_blocked(self):
         with self.assertRaises(ValueError):
             ensure_public_web_url("http://127.0.0.1:8000")
+
+    def test_localhost_is_blocked(self):
+        with self.assertRaises(ValueError):
+            ensure_public_web_url("http://localhost/evil")
+
+    def test_private_network_addresses_are_blocked(self):
+        with self.assertRaises(ValueError):
+            ensure_public_web_url("http://192.168.1.1/")
+
+    def test_unsupported_url_schemes_are_blocked(self):
+        with self.assertRaises(ValueError):
+            ensure_public_web_url("ftp://example.com")
+
+    def test_webcal_urls_are_normalized_to_https(self):
+        url = normalize_webcal_url("webcal://example.com/cal.ics")
+
+        self.assertEqual(url, "https://example.com/cal.ics")
 
     def test_html_is_converted_to_text(self):
         text = html_to_text(
@@ -103,6 +121,28 @@ END:VCALENDAR
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["title"], "Vereinstreffen")
         self.assertEqual(events[0]["item_type"], "calendar")
+        self.assertEqual(events[0]["starts_at"], datetime(2026, 6, 1, 18, 0, tzinfo=timezone.utc))
+        self.assertEqual(events[0]["ends_at"], datetime(2026, 6, 1, 20, 0, tzinfo=timezone.utc))
+
+    def test_ics_events_with_timezone_parameter_do_not_crash(self):
+        text = """
+BEGIN:VCALENDAR
+BEGIN:VEVENT
+SUMMARY:Abendtermin
+DTSTART;TZID=Europe/Berlin:20250315T190000
+END:VEVENT
+END:VCALENDAR
+"""
+
+        events = parse_ics_events(text)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["title"], "Abendtermin")
+
+    def test_empty_ics_text_returns_empty_list(self):
+        events = parse_ics_events("")
+
+        self.assertEqual(events, [])
 
     def test_past_calendar_events_are_filtered_from_import(self):
         now = datetime(2026, 5, 24, 12, 0, tzinfo=timezone.utc)

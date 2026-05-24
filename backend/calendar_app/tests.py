@@ -9,6 +9,7 @@ from calendar_app.views import default_event_start_from_text, default_location_f
 from accounts.models import User
 from calendar_app.forms import CalendarEventForm
 from calendar_app.models import CalendarEvent
+from common.models import Group
 from news.models import ImportedExternalItem, NewsSource, SourceDiscovery
 
 
@@ -108,3 +109,40 @@ class EventImportListTests(TestCase):
         titles = [item.title for item in response.context["imported_items"]]
 
         self.assertEqual(titles, ["Zukuenftiger Termin"])
+
+
+class EventGroupFilterTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", password="testpass123", role=User.Role.USER)
+        self.klein_haitabu = Group.objects.get(slug="klein_haitabu")
+        self.dsf = Group.objects.get(slug="dsf")
+        self.klein_event = CalendarEvent.objects.create(
+            group=self.klein_haitabu,
+            title="Klein-Haitabu-Termin",
+            starts_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.get_current_timezone()),
+            ends_at=datetime(2026, 6, 1, 11, 0, tzinfo=timezone.get_current_timezone()),
+            created_by=self.user,
+        )
+        self.dsf_event = CalendarEvent.objects.create(
+            group=self.dsf,
+            title="DSF-Termin",
+            starts_at=datetime(2026, 6, 2, 10, 0, tzinfo=timezone.get_current_timezone()),
+            ends_at=datetime(2026, 6, 2, 11, 0, tzinfo=timezone.get_current_timezone()),
+            created_by=self.user,
+        )
+
+    def test_klein_haitabu_view_hides_dsf_events(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("calendar:list"))
+
+        self.assertContains(response, "Klein-Haitabu-Termin")
+        self.assertNotContains(response, "DSF-Termin")
+
+    def test_dsf_view_hides_klein_haitabu_events(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("calendar:dsf-list"))
+
+        self.assertContains(response, "DSF-Termin")
+        self.assertNotContains(response, "Klein-Haitabu-Termin")

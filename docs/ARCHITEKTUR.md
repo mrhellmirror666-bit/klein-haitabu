@@ -46,9 +46,21 @@ Zustaendig fuer:
 
 Zustaendig fuer gemeinsam genutzte Logik:
 
-- Basismodelle
-- Hilfsfunktionen
-- allgemeine Rechtepruefungen
+- Gruppenmodell
+- Datums-Hilfsfunktionen
+
+### news
+
+Zustaendig fuer Nachrichtenquellen, erkannte externe Inhalte und Importe.
+Die Fachlogik ist nach Verantwortlichkeiten aufgeteilt:
+
+- `fetching.py`: Abruf von HTML, Text und Webcal-Adressen
+- `security.py`: Sicherheitspruefung fuer oeffentliche Webadressen
+- `parsing.py`: Parser und Extraktion fuer ICS, CSV, HTML und Text
+- `summaries.py`: kurze Zusammenfassungen und Kalender-Anzeigetexte
+- `imports.py`: Import von Kalender- und Tabellenfunden
+- `discovery.py`: Suche nach Nachrichten, Kalendern und Tabellenhinweisen
+- `services.py`: Re-Exports fuer bestehende Imports
 
 ## Warum kein separates React-Frontend am Anfang?
 
