@@ -70,6 +70,25 @@ Andere Zeiten sind moeglich:
 .\scripts\install-windows-tasks.ps1 -BackupTime "02:00" -UpdateTime "02:30"
 ```
 
+## Quellen automatisch aktualisieren
+
+Nachrichtenquellen koennen ausserhalb des Browser-Requests aktualisiert werden:
+
+```powershell
+cd backend
+python manage.py refresh_sources
+```
+
+Eine einzelne Quelle kann per ID aktualisiert werden:
+
+```powershell
+python manage.py refresh_sources --pk 3
+```
+
+Fehler einer Quelle werden in der Quelle gespeichert und brechen die
+Aktualisierung der anderen Quellen nicht ab. Der Befehl eignet sich fuer eine
+geplante Aufgabe, zum Beispiel im Windows Task Scheduler.
+
 ## Voraussetzungen
 
 - Git for Windows muss installiert sein.

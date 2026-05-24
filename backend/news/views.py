@@ -66,45 +66,7 @@ class NewsSourceSummarizeView(AdminOnlyMixin, View):
         source = NewsSource.objects.get(pk=pk)
 
         try:
-            discovered_items = discover_news_items(source.url) if source.search_news else []
-            discovered_links = discover_source_links(
-                source.url,
-                search_calendars=source.search_calendars,
-                search_tables=source.search_tables,
-            )
-            created_or_updated = 0
-            found_links = 0
-
-            for item in discovered_items:
-                NewsItem.objects.update_or_create(
-                    source=source,
-                    url=item["url"],
-                    defaults={
-                        "title": item["title"],
-                        "summary": item["summary"],
-                    },
-                )
-                created_or_updated += 1
-
-            for link in discovered_links:
-                SourceDiscovery.objects.update_or_create(
-                    source=source,
-                    discovery_type=link["type"],
-                    url=link["url"],
-                    defaults={
-                        "target_group": source.target_group,
-                        "title": link["title"],
-                        "description": link["description"],
-                    },
-                )
-                found_links += 1
-
-            source.summary = (
-                f"{created_or_updated} Nachrichten und {found_links} Kalender-/Tabellenhinweise wurden gefunden."
-            )
-            source.last_error = ""
-            source.last_fetched_at = timezone.now()
-            source.save(update_fields=["summary", "last_error", "last_fetched_at", "updated_at"])
+            created_or_updated, found_links = refresh_source(source)
             messages.success(
                 request,
                 f"{source.name}: {created_or_updated} Nachrichten und {found_links} Hinweise wurden aktualisiert.",
@@ -144,7 +106,7 @@ def refresh_source(source):
             discovery_type=link["type"],
             url=link["url"],
             defaults={
-                        "target_group": source.target_group,
+                "target_group": source.target_group,
                 "title": link["title"],
                 "description": link["description"],
             },
