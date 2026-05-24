@@ -39,6 +39,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 500;
   line-height: 1.5;
 }
 
@@ -50,15 +51,44 @@ a {
   align-items: center;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
-  display: flex;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr auto;
   justify-content: space-between;
   padding: 1rem clamp(1rem, 4vw, 3rem);
 }
 
-.brand {
-  font-size: 1.1rem;
+.group-tabs {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 760px;
+  width: 100%;
+}
+
+.group-tabs a {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
   font-weight: 700;
+  min-height: 2.65rem;
+  padding: 0.55rem 0.75rem;
+  text-align: center;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-tabs a:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.group-tabs .brand-tab {
+  color: var(--text);
 }
 
 .nav {
@@ -179,6 +209,7 @@ a {
 .hero h1,
 .page-head h1,
 .panel h1 {
+  font-weight: 800;
   margin: 0;
   max-width: 760px;
 }
@@ -260,6 +291,16 @@ a {
   margin: 0 0 1rem;
 }
 
+.group-page {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.group-page h1,
+.group-page p {
+  margin: 0;
+}
+
 .form {
   display: grid;
   gap: 1rem;
@@ -304,6 +345,7 @@ select {
 
 .event-card h3 {
   font-size: 1.1rem;
+  font-weight: 800;
   margin: 0 0 0.35rem;
 }
 
@@ -390,6 +432,7 @@ select {
 
 .news-panel-head h2 {
   font-size: 1.15rem;
+  font-weight: 800;
   margin: 0;
 }
 
@@ -402,6 +445,7 @@ select {
 
 .news-item h3 {
   font-size: 1rem;
+  font-weight: 800;
   margin: 0;
 }
 
@@ -592,11 +636,15 @@ select {
   .page-head,
   .event-card {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .nav {
     justify-content: space-between;
+  }
+
+  .group-tabs {
+    grid-template-columns: 1fr;
   }
 
   .menu-items {

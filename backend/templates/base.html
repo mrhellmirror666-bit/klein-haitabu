@@ -16,7 +16,11 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="{% url 'home' %}">Klein Haitabu</a>
+      <nav class="group-tabs" aria-label="Vereinsgruppen">
+        <a class="brand-tab" href="{% url 'home' %}">Klein Haitabu</a>
+        <a href="{% url 'calendar:dsf-list' %}">DSF</a>
+        <a href="{% url 'group-hyperraum-hopfen' %}">Hyperraum & Hopfen</a>
+      </nav>
       <nav class="nav">
         {% if user.is_authenticated %}
           <details class="menu">

@@ -165,7 +165,27 @@ def import_calendar_items(url):
             "Wenn es eine iCal-/ICS-Exportadresse gibt, fuege bitte diese als Quelle hinzu."
         )
 
-    return events[:MAX_IMPORTED_ITEMS]
+    upcoming_events = filter_upcoming_calendar_items(events)
+    if not upcoming_events:
+        raise ValueError("In dieser Kalenderquelle wurden keine zukuenftigen Termine gefunden.")
+
+    return upcoming_events[:MAX_IMPORTED_ITEMS]
+
+
+def filter_upcoming_calendar_items(items, now=None):
+    now = now or datetime.now(datetime_timezone.utc)
+    return [item for item in items if calendar_item_is_upcoming(item, now)]
+
+
+def calendar_item_is_upcoming(item, now):
+    ends_at = item.get("ends_at")
+    starts_at = item.get("starts_at")
+
+    if ends_at:
+        return ends_at >= now
+    if starts_at:
+        return starts_at >= now
+    return False
 
 
 def import_table_items(url):
@@ -310,7 +330,7 @@ def parse_html_calendar_items(html):
     snippets = split_text_around_dates(text)
     events = []
 
-    for snippet in snippets[:MAX_IMPORTED_ITEMS]:
+    for snippet in snippets:
         starts_at = parse_german_date_from_text(snippet)
         title = title_from_calendar_snippet(snippet)
 

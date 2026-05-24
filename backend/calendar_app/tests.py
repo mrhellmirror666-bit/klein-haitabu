@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from calendar_app.forms import CalendarEventForm
@@ -8,6 +9,7 @@ from calendar_app.views import default_event_start_from_text, default_location_f
 from accounts.models import User
 from calendar_app.forms import CalendarEventForm
 from calendar_app.models import CalendarEvent
+from news.models import ImportedExternalItem, NewsSource, SourceDiscovery
 
 
 class CalendarEventModelTests(TestCase):
@@ -65,3 +67,44 @@ class EventInitialDateTests(TestCase):
         form = CalendarEventForm(initial={"starts_at": starts_at, "ends_at": starts_at})
 
         self.assertIn('value="2026-03-20T09:00"', str(form["starts_at"]))
+
+
+class EventImportListTests(TestCase):
+    def test_past_imported_calendar_items_are_hidden(self):
+        user = User.objects.create_user(username="user", password="testpass123", role=User.Role.USER)
+        source = NewsSource.objects.create(
+            name="Quelle",
+            url="https://example.org",
+            created_by=user,
+        )
+        discovery = SourceDiscovery.objects.create(
+            source=source,
+            discovery_type=SourceDiscovery.DiscoveryType.CALENDAR,
+            title="Kalender",
+            url="https://example.org/termine.ics",
+            is_imported=True,
+            show_on_main_page=True,
+        )
+        now = timezone.now()
+        ImportedExternalItem.objects.create(
+            discovery=discovery,
+            item_type=ImportedExternalItem.ItemType.CALENDAR,
+            title="Vergangener Termin",
+            starts_at=now - timedelta(days=2),
+            ends_at=now - timedelta(days=1),
+            source_url=discovery.url,
+        )
+        ImportedExternalItem.objects.create(
+            discovery=discovery,
+            item_type=ImportedExternalItem.ItemType.CALENDAR,
+            title="Zukuenftiger Termin",
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=2),
+            source_url=discovery.url,
+        )
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("calendar:list"))
+        titles = [item.title for item in response.context["imported_items"]]
+
+        self.assertEqual(titles, ["Zukuenftiger Termin"])

@@ -58,6 +58,7 @@ vereinsplattform/
 ## Dokumentation
 
 - [Architektur](docs/ARCHITEKTUR.md)
+- [Backup- und Update-Plan](docs/BACKUP_UND_UPDATES.md)
 - [Datenbankmodell](docs/DATENBANKMODELL.md)
 - [Rollenmodell](docs/ROLLENMODELL.md)
 - [Sicherheitskonzept](docs/SICHERHEIT.md)

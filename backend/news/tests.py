@@ -1,8 +1,11 @@
+from datetime import datetime, timezone
+
 from django.test import TestCase
 
 from news.services import (
     ensure_public_web_url,
     extract_discovery_candidates,
+    filter_upcoming_calendar_items,
     extract_link_candidates,
     extract_page_title,
     html_to_text,
@@ -99,6 +102,36 @@ END:VCALENDAR
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["title"], "Vereinstreffen")
         self.assertEqual(events[0]["item_type"], "calendar")
+
+    def test_past_calendar_events_are_filtered_from_import(self):
+        now = datetime(2026, 5, 24, 12, 0, tzinfo=timezone.utc)
+        items = [
+            {
+                "item_type": "calendar",
+                "title": "Alter Termin",
+                "starts_at": datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
+                "ends_at": datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+                "content": "",
+            },
+            {
+                "item_type": "calendar",
+                "title": "Laufender Termin",
+                "starts_at": datetime(2026, 5, 24, 10, 0, tzinfo=timezone.utc),
+                "ends_at": datetime(2026, 5, 24, 13, 0, tzinfo=timezone.utc),
+                "content": "",
+            },
+            {
+                "item_type": "calendar",
+                "title": "Zukuenftiger Termin",
+                "starts_at": datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+                "ends_at": None,
+                "content": "",
+            },
+        ]
+
+        titles = [item["title"] for item in filter_upcoming_calendar_items(items, now=now)]
+
+        self.assertEqual(titles, ["Laufender Termin", "Zukuenftiger Termin"])
 
     def test_csv_rows_are_parsed(self):
         rows = parse_csv_rows("Name;Rolle\nAnna;Admin")

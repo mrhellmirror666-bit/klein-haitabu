@@ -5,6 +5,7 @@ import re
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
@@ -91,9 +92,13 @@ class EventListView(LoginRequiredMixin, ListView):
     model = CalendarEvent
     template_name = "calendar_app/event_list.html"
     context_object_name = "events"
+    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    group_name = "Klein Haitabu"
+    list_url_name = "calendar:list"
+    create_url_name = "calendar:create"
 
     def get_queryset(self):
-        return CalendarEvent.objects.select_related("created_by")
+        return CalendarEvent.objects.filter(group=self.group_code).select_related("created_by")
 
     def get_month_date(self):
         today = timezone.localdate()
@@ -137,6 +142,13 @@ class EventListView(LoginRequiredMixin, ListView):
         previous_month = self.shift_month(month_date, -1)
         next_month = self.shift_month(month_date, 1)
 
+        now = timezone.now()
+        visible_imports = (
+            Q(item_type=ImportedExternalItem.ItemType.TABLE)
+            | Q(item_type=ImportedExternalItem.ItemType.CALENDAR, ends_at__gte=now)
+            | Q(item_type=ImportedExternalItem.ItemType.CALENDAR, ends_at__isnull=True, starts_at__gte=now)
+        )
+
         context.update(
             {
                 "calendar_weeks": weeks,
@@ -144,6 +156,9 @@ class EventListView(LoginRequiredMixin, ListView):
                 "previous_month": previous_month,
                 "next_month": next_month,
                 "weekday_labels": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+                "group_code": self.group_code,
+                "group_name": self.group_name,
+                "create_url_name": self.create_url_name,
                 "news_items": NewsItem.objects.filter(source__is_active=True)
                 .select_related("source")
                 .order_by("-updated_at")[:6],
@@ -151,6 +166,7 @@ class EventListView(LoginRequiredMixin, ListView):
                     discovery__is_imported=True,
                     discovery__show_on_main_page=True,
                 )
+                .filter(visible_imports)
                 .select_related("discovery", "discovery__source")
                 .order_by("-created_at")[:8],
             }
@@ -173,7 +189,8 @@ class EventCreateView(LoginRequiredMixin, CreateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_app/event_form.html"
-    success_url = reverse_lazy("calendar:list")
+    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    success_url_name = "calendar:list"
 
     def dispatch(self, request, *args, **kwargs):
         if not can_create_event(request.user):
@@ -182,15 +199,20 @@ class EventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        form.instance.group = self.group_code
         messages.success(self.request, "Termin wurde erstellt.")
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy(self.success_url_name)
 
 
 class NewsToCalendarEventCreateView(LoginRequiredMixin, CreateView):
     model = CalendarEvent
     form_class = NewsToCalendarEventForm
     template_name = "calendar_app/news_event_form.html"
-    success_url = reverse_lazy("calendar:list")
+    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    success_url_name = "calendar:list"
 
     def dispatch(self, request, *args, **kwargs):
         if not can_create_event(request.user):
@@ -220,15 +242,20 @@ class NewsToCalendarEventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        form.instance.group = self.group_code
         messages.success(self.request, "Kurznachricht wurde als Kalendereintrag gespeichert.")
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy(self.success_url_name)
 
 
 class ImportToCalendarEventCreateView(LoginRequiredMixin, CreateView):
     model = CalendarEvent
     form_class = NewsToCalendarEventForm
     template_name = "calendar_app/news_event_form.html"
-    success_url = reverse_lazy("calendar:list")
+    group_code = CalendarEvent.Group.KLEIN_HAITABU
+    success_url_name = "calendar:list"
 
     def dispatch(self, request, *args, **kwargs):
         if not can_create_event(request.user):
@@ -262,15 +289,22 @@ class ImportToCalendarEventCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        form.instance.group = self.group_code
         messages.success(self.request, "Import wurde als Kalendereintrag gespeichert.")
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy(self.success_url_name)
 
 
 class EventUpdateView(LoginRequiredMixin, UpdateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_app/event_form.html"
-    success_url = reverse_lazy("calendar:list")
+    def get_success_url(self):
+        if self.object.group == CalendarEvent.Group.DSF:
+            return reverse_lazy("calendar:dsf-list")
+        return reverse_lazy("calendar:list")
 
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -286,10 +320,36 @@ class EventUpdateView(LoginRequiredMixin, UpdateView):
 class EventDeleteView(LoginRequiredMixin, DeleteView):
     model = CalendarEvent
     template_name = "calendar_app/event_confirm_delete.html"
-    success_url = reverse_lazy("calendar:list")
+
+    def get_success_url(self):
+        if self.object.group == CalendarEvent.Group.DSF:
+            return reverse_lazy("calendar:dsf-list")
+        return reverse_lazy("calendar:list")
 
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
         if not can_edit_event(request.user, self.object):
             raise PermissionDenied("Du darfst diesen Termin nicht loeschen.")
         return super().dispatch(request, *args, **kwargs)
+
+
+class DSFEventListView(EventListView):
+    group_code = CalendarEvent.Group.DSF
+    group_name = "DSF"
+    list_url_name = "calendar:dsf-list"
+    create_url_name = "calendar:dsf-create"
+
+
+class DSFEventCreateView(EventCreateView):
+    group_code = CalendarEvent.Group.DSF
+    success_url_name = "calendar:dsf-list"
+
+
+class DSFNewsToCalendarEventCreateView(NewsToCalendarEventCreateView):
+    group_code = CalendarEvent.Group.DSF
+    success_url_name = "calendar:dsf-list"
+
+
+class DSFImportToCalendarEventCreateView(ImportToCalendarEventCreateView):
+    group_code = CalendarEvent.Group.DSF
+    success_url_name = "calendar:dsf-list"

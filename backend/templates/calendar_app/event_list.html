@@ -1,19 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Kalender - Klein Haitabu{% endblock %}
+{% block title %}Kalender - {{ group_name }}{% endblock %}
 
 {% block content %}
   <section class="page-head">
     <div>
       <p class="eyebrow">Kalender</p>
-      <h1>{{ month_date|date:"F Y" }}</h1>
+      <h1>{{ group_name }} · {{ month_date|date:"F Y" }}</h1>
     </div>
 
     <div class="actions">
       <a class="button" href="?monat={{ previous_month.month }}&jahr={{ previous_month.year }}">Zurueck</a>
       <a class="button" href="?monat={{ next_month.month }}&jahr={{ next_month.year }}">Weiter</a>
       {% if user.role == "admin" or user.role == "user" %}
-        <a class="button primary" href="{% url 'calendar:create' %}">Termin erstellen</a>
+        {% if group_code == "dsf" %}
+          <a class="button primary" href="{% url 'calendar:dsf-create' %}">Termin erstellen</a>
+        {% else %}
+          <a class="button primary" href="{% url 'calendar:create' %}">Termin erstellen</a>
+        {% endif %}
       {% endif %}
     </div>
   </section>
@@ -73,7 +77,11 @@
             {% endif %}
             <span>{{ item.discovery.source.name }} · {{ item.get_item_type_display }}</span>
             {% if user.role == "admin" or user.role == "user" %}
-              <a class="button" href="{% url 'calendar:create-from-import' item.pk %}">Als Termin hinzufuegen</a>
+              {% if group_code == "dsf" %}
+                <a class="button" href="{% url 'calendar:dsf-create-from-import' item.pk %}">Als Termin hinzufuegen</a>
+              {% else %}
+                <a class="button" href="{% url 'calendar:create-from-import' item.pk %}">Als Termin hinzufuegen</a>
+              {% endif %}
             {% endif %}
             <a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">Quelle oeffnen</a>
           </article>
@@ -97,7 +105,11 @@
             <p>{{ item.summary }}</p>
             <span>{{ item.source.name }}</span>
             {% if user.role == "admin" or user.role == "user" %}
-              <a class="button" href="{% url 'calendar:create-from-news' item.pk %}">Als Termin hinzufuegen</a>
+              {% if group_code == "dsf" %}
+                <a class="button" href="{% url 'calendar:dsf-create-from-news' item.pk %}">Als Termin hinzufuegen</a>
+              {% else %}
+                <a class="button" href="{% url 'calendar:create-from-news' item.pk %}">Als Termin hinzufuegen</a>
+              {% endif %}
             {% endif %}
             <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">Nachricht oeffnen</a>
           </article>

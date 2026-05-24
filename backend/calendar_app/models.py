@@ -3,11 +3,16 @@ from django.db import models
 
 
 class CalendarEvent(models.Model):
+    class Group(models.TextChoices):
+        KLEIN_HAITABU = "klein_haitabu", "Klein Haitabu"
+        DSF = "dsf", "DSF"
+
     class Visibility(models.TextChoices):
         USERS = "users", "Nutzer"
         GUESTS = "guests", "Gaeste"
         PUBLIC = "public", "Oeffentlich"
 
+    group = models.CharField(max_length=30, choices=Group.choices, default=Group.KLEIN_HAITABU)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     starts_at = models.DateTimeField()
