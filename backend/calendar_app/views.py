@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from accounts.permissions import can_create_event, can_edit_event
+from common.dates import parse_german_date_from_text, parse_time_from_text
 from news.models import ImportedExternalItem, NewsItem, NewsSource
 
 from .forms import CalendarEventForm, NewsToCalendarEventForm
@@ -18,9 +19,12 @@ from .models import CalendarEvent
 
 
 def default_event_start_from_text(text):
-    parsed_date = parse_german_date(text)
+    parsed_date = parse_german_date_from_text(text)
     if parsed_date:
-        hour, minute = parse_time(text)
+        hour, minute = parse_time_from_text(text)
+        has_time = re.search(r"\b\d{1,2}:\d{2}\b|\b\d{1,2}\.\d{2}\s*Uhr\b", text, flags=re.IGNORECASE)
+        if (hour, minute) == (0, 0) and not has_time:
+            hour, minute = 9, 0
         return timezone.make_aware(
             timezone.datetime(parsed_date.year, parsed_date.month, parsed_date.day, hour, minute),
             timezone.get_current_timezone(),
@@ -34,58 +38,6 @@ def default_location_from_text(text):
     if match:
         return match.group(1).strip()
     return ""
-
-
-def parse_german_date(text):
-    numeric_match = re.search(r"\b(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{2,4})\b", text)
-    if numeric_match:
-        day, month, year = numeric_match.groups()
-        if len(year) == 2:
-            year = f"20{year}"
-        return date(int(year), int(month), int(day))
-
-    word_match = re.search(
-        r"\b(\d{1,2})\.\s*(Januar|Februar|Maerz|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})\b",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if word_match:
-        day, month_name, year = word_match.groups()
-        return date(int(year), german_month_number(month_name), int(day))
-
-    return None
-
-
-def parse_time(text):
-    match = re.search(r"\b(\d{1,2}):(\d{2})\b", text)
-    if match:
-        return int(match.group(1)), int(match.group(2))
-
-    match = re.search(r"\b(\d{1,2})\.(\d{2})\s*Uhr\b", text, flags=re.IGNORECASE)
-    if match:
-        return int(match.group(1)), int(match.group(2))
-
-    return 9, 0
-
-
-def german_month_number(month_name):
-    normalized = month_name.lower().replace("ä", "ae")
-    months = {
-        "januar": 1,
-        "februar": 2,
-        "maerz": 3,
-        "märz": 3,
-        "april": 4,
-        "mai": 5,
-        "juni": 6,
-        "juli": 7,
-        "august": 8,
-        "september": 9,
-        "oktober": 10,
-        "november": 11,
-        "dezember": 12,
-    }
-    return months[normalized]
 
 
 class EventListView(LoginRequiredMixin, ListView):
