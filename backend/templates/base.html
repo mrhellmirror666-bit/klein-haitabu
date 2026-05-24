@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Klein Haitabu{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="{% url 'home' %}">Klein Haitabu</a>
+      <nav class="nav">
+        {% if user.is_authenticated %}
+          <details class="menu">
+            <summary>Menue</summary>
+            <div class="menu-items">
+              <a href="{% url 'calendar:list' %}">Kalender</a>
+              {% if user.role == "admin" or user.is_superuser %}
+                <a href="{% url 'permission-management' %}">Rechteverwaltung</a>
+              {% endif %}
+            </div>
+          </details>
+          <form action="{% url 'logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit">Abmelden</button>
+          </form>
+        {% else %}
+          <a href="{% url 'login' %}">Anmelden</a>
+          <a href="{% url 'register' %}">Registrieren</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    <main class="page">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

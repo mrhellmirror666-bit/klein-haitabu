@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Kalender - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">Kalender</p>
+      <h1>{{ month_date|date:"F Y" }}</h1>
+    </div>
+
+    <div class="actions">
+      <a class="button" href="?monat={{ previous_month.month }}&jahr={{ previous_month.year }}">Zurueck</a>
+      <a class="button" href="?monat={{ next_month.month }}&jahr={{ next_month.year }}">Weiter</a>
+      {% if user.role == "admin" or user.role == "user" %}
+        <a class="button primary" href="{% url 'calendar:create' %}">Termin erstellen</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="calendar-shell" aria-label="Monatskalender">
+    <div class="calendar-weekdays">
+      {% for label in weekday_labels %}
+        <div>{{ label }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="calendar-grid">
+      {% for week in calendar_weeks %}
+        {% for day in week %}
+          <article class="calendar-day{% if not day.is_current_month %} muted-day{% endif %}{% if day.is_today %} today{% endif %}">
+            <time datetime="{{ day.date|date:'Y-m-d' }}">{{ day.date|date:"d.m." }}</time>
+
+            <div class="day-events">
+              {% for event in day.events %}
+                {% if user.role == "admin" or event.created_by_id == user.id %}
+                  <a class="calendar-event" href="{% url 'calendar:update' event.pk %}">
+                    <span>{{ event.starts_at|date:"H:i" }}</span>
+                    {{ event.title }}
+                  </a>
+                {% else %}
+                  <div class="calendar-event">
+                    <span>{{ event.starts_at|date:"H:i" }}</span>
+                    {{ event.title }}
+                  </div>
+                {% endif %}
+              {% empty %}
+                <span class="no-event">Keine Termine</span>
+              {% endfor %}
+            </div>
+          </article>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="event-list" aria-label="Terminliste">
+    <h2>Terminliste</h2>
+    {% if events %}
+      {% for event in events %}
+        <article class="event-card">
+          <div>
+            <h3>{{ event.title }}</h3>
+            <p>{{ event.starts_at|date:"d.m.Y H:i" }} bis {{ event.ends_at|date:"d.m.Y H:i" }}</p>
+            {% if event.location %}
+              <p>{{ event.location }}</p>
+            {% endif %}
+            {% if event.description %}
+              <p>{{ event.description }}</p>
+            {% endif %}
+          </div>
+          {% if user.role == "admin" or event.created_by_id == user.id %}
+            <div class="card-actions">
+              <a href="{% url 'calendar:update' event.pk %}">Bearbeiten</a>
+              <a href="{% url 'calendar:delete' event.pk %}">Loeschen</a>
+            </div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    {% else %}
+      <p class="empty">Noch keine Termine vorhanden.</p>
+    {% endif %}
+  </section>
+{% endblock %}

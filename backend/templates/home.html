@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Start - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Vereinsplattform</p>
+      <h1>Gemeinsamer Kalender fuer Klein Haitabu</h1>
+      <p>
+        Diese erste Version legt die Grundlage fuer Anmeldung, Rollen,
+        Kalendertermine und spaetere Schnittstellen.
+      </p>
+      <div class="actions">
+        {% if user.is_authenticated %}
+          <a class="button primary" href="{% url 'calendar:list' %}">Zum Kalender</a>
+        {% else %}
+          <a class="button primary" href="{% url 'register' %}">Konto erstellen</a>
+          <a class="button" href="{% url 'login' %}">Anmelden</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

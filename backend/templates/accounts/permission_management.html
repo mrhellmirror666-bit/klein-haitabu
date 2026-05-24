@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Rechteverwaltung - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">Verwaltung</p>
+      <h1>Rechteverwaltung</h1>
+    </div>
+    <a class="button" href="/admin/accounts/user/">Im Admin bearbeiten</a>
+  </section>
+
+  <section class="panel">
+    <h2>Rollenregeln</h2>
+    <div class="table-wrap permission-rules">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Rolle</th>
+            <th>Lesen</th>
+            <th>Erstellen</th>
+            <th>Bearbeiten</th>
+            <th>Loeschen</th>
+            <th>Hinweis</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in role_rules %}
+            <tr>
+              <td><span class="role-pill">{{ rule.role }}</span></td>
+              <td>{{ rule.can_read }}</td>
+              <td>{{ rule.can_create }}</td>
+              <td>{{ rule.can_edit }}</td>
+              <td>{{ rule.can_delete }}</td>
+              <td>{{ rule.note }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Benutzer</h2>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Benutzername</th>
+            <th>E-Mail</th>
+            <th>Rolle</th>
+            <th>Admin-Zugang</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for account in users %}
+            <tr>
+              <td>{{ account.username }}</td>
+              <td>{{ account.email|default:"-" }}</td>
+              <td><span class="role-pill">{{ account.get_role_display }}</span></td>
+              <td>{% if account.is_staff or account.is_superuser %}Ja{% else %}Nein{% endif %}</td>
+              <td>{% if account.is_active %}Aktiv{% else %}Gesperrt{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5">Noch keine Benutzer vorhanden.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

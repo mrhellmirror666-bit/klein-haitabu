@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Termin - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Termin</h1>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="button primary" type="submit">Speichern</button>
+      <a class="button" href="{% url 'calendar:list' %}">Abbrechen</a>
+    </form>
+  </section>
+{% endblock %}

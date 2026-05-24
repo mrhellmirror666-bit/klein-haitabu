@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Anmelden - Klein Haitabu{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Anmelden</h1>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="button primary" type="submit">Anmelden</button>
+    </form>
+  </section>
+{% endblock %}
