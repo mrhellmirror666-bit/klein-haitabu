@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from django.test import TestCase
 
 from news.services import (
+    MAX_IMPORTED_ITEMS,
     ensure_public_web_url,
     extract_discovery_candidates,
     filter_upcoming_calendar_items,
@@ -138,6 +139,32 @@ END:VCALENDAR
 
         self.assertEqual(rows[0]["title"], "Name")
         self.assertIn("Rolle", rows[0]["content"])
+
+    def test_comma_separated_csv_rows_are_parsed(self):
+        rows = parse_csv_rows("Name,Rolle\nAnna,Admin")
+
+        self.assertEqual(rows[0]["title"], "Name")
+        self.assertEqual(rows[0]["content"], "Name | Rolle")
+        self.assertEqual(rows[1]["content"], "Anna | Admin")
+
+    def test_quoted_semicolon_csv_rows_are_parsed(self):
+        rows = parse_csv_rows('"Mustermann, Max";"Veranstaltung"')
+
+        self.assertEqual(rows[0]["title"], "Mustermann, Max")
+        self.assertEqual(rows[0]["content"], "Mustermann, Max | Veranstaltung")
+
+    def test_empty_csv_rows_are_skipped(self):
+        rows = parse_csv_rows("\n\nName;Rolle\n\nAnna;Admin\n")
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["title"], "Name")
+
+    def test_csv_rows_do_not_exceed_import_limit(self):
+        text = "\n".join(f"Name {index};Rolle" for index in range(MAX_IMPORTED_ITEMS + 3))
+
+        rows = parse_csv_rows(text)
+
+        self.assertEqual(len(rows), MAX_IMPORTED_ITEMS)
 
     def test_html_table_rows_are_parsed(self):
         rows = parse_html_table_rows("<table><tr><th>Name</th><th>Rolle</th></tr><tr><td>Anna</td><td>Admin</td></tr></table>")

@@ -1,3 +1,5 @@
+import csv
+import io
 import ipaddress
 import re
 import socket
@@ -286,10 +288,16 @@ def parse_ics_datetime(value):
 
 def parse_csv_rows(text):
     rows = []
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    sample = "\n".join(line for line in text.splitlines() if line.strip())[:2048]
 
-    for line in lines[:MAX_IMPORTED_ITEMS]:
-        columns = [column.strip().strip('"') for column in re.split(r";|,", line) if column.strip()]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=";,")
+        reader = csv.reader(io.StringIO(text), dialect)
+    except csv.Error:
+        reader = csv.reader(io.StringIO(text), delimiter=";", skipinitialspace=True)
+
+    for row in reader:
+        columns = [column.strip() for column in row if column.strip()]
         if not columns:
             continue
         rows.append(
@@ -301,6 +309,8 @@ def parse_csv_rows(text):
                 "content": " | ".join(columns[:8]),
             }
         )
+        if len(rows) >= MAX_IMPORTED_ITEMS:
+            break
 
     return rows
 
